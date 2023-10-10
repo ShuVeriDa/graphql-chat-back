@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { User } from '../user/types';
 import { LoginDto } from './dto/login.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -76,5 +77,14 @@ export class AuthService {
     return { user };
   }
 
-  async validateUser(loginDto: LoginDto) {}
+  async validateUser(loginDto: LoginDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: loginDto.email },
+    });
+
+    if (user && (await bcrypt.compare(loginDto.password, user.password))) {
+      return user;
+    }
+    return null;
+  }
 }
