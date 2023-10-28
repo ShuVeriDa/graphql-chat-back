@@ -10,6 +10,7 @@ import { Request, Response } from 'express';
 import { User } from '../user/types';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -55,6 +56,7 @@ export class AuthService {
 
     return accessToken;
   }
+
   private async issueTokens(user: User, response: Response) {
     const payload = { username: user.fullname, sub: user.id };
 
@@ -86,5 +88,45 @@ export class AuthService {
       return user;
     }
     return null;
+  }
+
+  async register(registerDto: RegisterDto, response: Response) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: registerDto.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException({ email: 'Email is already in use' });
+    }
+
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    const user = await this.prisma.user.create({
+      data: {
+        fullname: registerDto.fullname,
+        password: hashedPassword,
+        email: registerDto.email,
+      },
+    });
+
+    return this.issueTokens(user, response);
+  }
+
+  async login(loginDto: LoginDto, response: Response) {
+    const user = await this.validateUser(loginDto);
+
+    if (!user) {
+      throw new BadRequestException({
+        invalidCredentials: 'Invalid credentials',
+      });
+    }
+
+    return this.issueTokens(user, response);
+  }
+
+  async logout(response: Response) {
+    response.clearCookie('access_token');
+    response.clearCookie('refresh_token');
+
+    return 'Successfully logged out';
   }
 }
