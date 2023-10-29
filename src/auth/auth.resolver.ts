@@ -46,4 +46,9 @@ export class AuthResolver {
       throw new BadRequestException(error.message);
     }
   }
+
+  @Query(() => String)
+  async hello() {
+    return 'hello';
+  }
 }
